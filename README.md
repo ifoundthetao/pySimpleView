@@ -11,7 +11,7 @@ config files to hand-edit.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)
-![Platform](https://img.shields.io/badge/platform-macOS-lightgrey.svg)
+![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)
 
 ---
 
@@ -24,7 +24,10 @@ uv run python -m pysimpleview
 The first launch resolves dependencies (PySide6, OpenCV, NumPy, anthropic,
 keyring) into a local `uv` environment. On macOS you'll be prompted to grant
 **Camera** access the first time a device is opened
-(System Settings → Privacy & Security → Camera).
+(System Settings → Privacy & Security → Camera). The app runs on macOS, Windows,
+and Linux: it opens cameras through AVFoundation on macOS and through OpenCV's
+default backend (DirectShow/Media Foundation on Windows, V4L2 on Linux)
+elsewhere.
 
 Press **Ctrl-C** in the terminal at any time for a clean shutdown — the live
 capture is released and the app exits gracefully.
@@ -121,8 +124,9 @@ supplying your own base URL and model id.
 3. Paste your **API key** and click **Save**.
 4. Optionally edit the **Prompt** (see below).
 
-**Your key never touches the settings file.** It's stored in the macOS Keychain
-(service `pySimpleView`, account = provider). Alternatively, supply it via an
+**Your key never touches the settings file.** It's stored in your system keychain
+(macOS Keychain, Windows Credential Locker, or Linux Secret Service / KWallet)
+under service `pySimpleView`, account = provider. Alternatively, supply it via an
 environment variable, which takes precedence over the keychain:
 
 ```sh
@@ -192,9 +196,10 @@ it sees across the set. Enhancement, if enabled, is applied to every shot.
 
 ## Settings
 
-All settings are saved automatically to
-`~/Library/Application Support/pySimpleView/settings.json`. API keys are **not**
-stored there — they live in the macOS Keychain.
+All settings are saved automatically to a per-user config directory:
+`~/Library/Application Support/pySimpleView/` on macOS, `%APPDATA%\pySimpleView\`
+on Windows, and `$XDG_CONFIG_HOME/pySimpleView/` (default `~/.config/pySimpleView/`)
+on Linux. API keys are **not** stored there — they live in your system keychain.
 
 ## Troubleshooting / logging
 

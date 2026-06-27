@@ -1,8 +1,10 @@
-"""Persistent application settings, stored as JSON in the macOS app-support dir."""
+"""Persistent application settings, stored as JSON in the platform config dir."""
 
 from __future__ import annotations
 
 import json
+import os
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -46,7 +48,19 @@ DEFAULTS: dict[str, Any] = {
 
 
 def config_dir() -> Path:
-    base = Path.home() / "Library" / "Application Support" / APP_NAME
+    """Return the per-user config directory for this platform, creating it.
+
+    - macOS:   ~/Library/Application Support/pySimpleView
+    - Windows: %APPDATA%\\pySimpleView
+    - Linux/other: $XDG_CONFIG_HOME/pySimpleView (default ~/.config/pySimpleView)
+    """
+    if sys.platform == "darwin":
+        root = Path.home() / "Library" / "Application Support"
+    elif sys.platform == "win32":
+        root = Path(os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming")
+    else:
+        root = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
+    base = root / APP_NAME
     base.mkdir(parents=True, exist_ok=True)
     return base
 

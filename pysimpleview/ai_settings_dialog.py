@@ -52,7 +52,7 @@ class AISettingsDialog(QDialog):
 
         hint = QLabel(
             "Leave Model / Base URL blank to use the provider's defaults. The API "
-            "key is stored in your macOS Keychain, never in the settings file."
+            "key is stored in your system keychain, never in the settings file."
         )
         hint.setWordWrap(True)
         hint.setStyleSheet("color:#888; font-size:11px;")

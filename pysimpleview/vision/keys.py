@@ -1,4 +1,7 @@
-"""API-key storage backed by the OS keychain (macOS Keychain), with env override.
+"""API-key storage backed by the system keychain, with env override.
+
+Uses ``keyring``, which maps to the macOS Keychain, Windows Credential Locker,
+or the Linux Secret Service / KWallet depending on the platform.
 
 Keys are stored per provider under the keyring service ``pySimpleView`` with the
 provider key as the account, so nothing secret is ever written to settings.json.
