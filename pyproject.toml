@@ -1,0 +1,15 @@
+[project]
+name = "pysimpleview"
+version = "0.1.0"
+description = "Simple USB microscope image capture with overlays, crop and calibrated measurement"
+requires-python = ">=3.10"
+dependencies = [
+    "PySide6>=6.6",
+    "opencv-python>=4.8",
+    "numpy>=1.24",
+    "anthropic>=0.40",
+    "keyring>=24",
+]
+
+[tool.uv]
+package = false
