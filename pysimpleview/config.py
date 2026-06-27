@@ -31,6 +31,7 @@ DEFAULTS: dict[str, Any] = {
     "scale_units_per_px": None,  # float or None
     "scale_unit": "µm",
     # AI identification (API keys live in the keychain, not here)
+    "ai_enhance": False,  # contrast-boost images sent to the model (view-only, non-destructive)
     "vision_provider": "minimax",
     "vision_model": "",       # empty -> provider preset default
     "vision_base_url": "",    # empty -> provider preset default

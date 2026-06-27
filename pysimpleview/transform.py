@@ -48,6 +48,25 @@ def gains_from_patch(patch: np.ndarray) -> list[float]:
     return [float(np.clip(target / m, 0.2, 5.0)) for m in means]
 
 
+def enhance_for_ai(
+    frame: np.ndarray, clip_limit: float = 2.0, tile: int = 8
+) -> np.ndarray:
+    """Boost local contrast to make faint markings more legible to a vision model.
+
+    Applies CLAHE (contrast-limited adaptive histogram equalisation) to the L
+    (lightness) channel in LAB space only, leaving the a/b colour channels
+    untouched. That sharpens etched/low-contrast text without shifting hue — so
+    colour-critical reads (e.g. resistor bands) stay faithful. Returns a new
+    uint8 BGR array; never mutates the input.
+    """
+    lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+    lightness, a, b = cv2.split(lab)
+    clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=(tile, tile))
+    lightness = clahe.apply(lightness)
+    merged = cv2.merge((lightness, a, b))
+    return cv2.cvtColor(merged, cv2.COLOR_LAB2BGR)
+
+
 def apply_crop(frame: np.ndarray, crop) -> np.ndarray:
     """Crop ``[x, y, w, h]`` (in transformed-image coords), clamped to bounds."""
     if not crop:

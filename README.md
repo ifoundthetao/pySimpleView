@@ -158,6 +158,36 @@ Some ways people use it:
 Tip: the more specific the prompt ("you are a numismatist; describe the date and
 mint mark"), the more useful the answer.
 
+### Enhancing legibility
+
+Tick **Enhance image(s) for AI** to boost local contrast (CLAHE) on the frame
+before it's sent — this makes faint, low-contrast markings such as laser-etched
+part numbers or date codes much easier for the model to read. The enhancement:
+
+- is **colour-preserving** (it works on lightness only), so it won't throw off
+  colour-critical reads like resistor bands;
+- is **non-destructive** — it's applied only to the image sent to the AI, never
+  to your saved captures;
+- can be **previewed** any time with the **Preview enhanced** button, which shows
+  the original next to the enhanced version side by side.
+
+### Guided multi-angle capture
+
+Some details only appear from the right angle or under raking light — embossed or
+etched text being the classic example. **Guided…** opens a small wizard that:
+
+1. shows a live preview and a cycling suggestion for each shot (straight-on, tilt
+   left/right, raking light, rotate 90°, …);
+2. lets you **capture several shots** of the same subject, building a thumbnail
+   strip you can prune;
+3. sends **all the shots together in a single request**, telling the model they
+   are the same subject from different angles/lighting so it can reason across
+   them.
+
+This is often the most effective way to identify a tricky part: a marking that's
+invisible flat-on frequently pops under side lighting, and the model fuses what
+it sees across the set. Enhancement, if enabled, is applied to every shot.
+
 ---
 
 ## Settings
@@ -196,6 +226,7 @@ They never include image data or API keys.
 | `pysimpleview/naming.py` | Filename convention / counter logic |
 | `pysimpleview/config.py` | Persistent settings |
 | `pysimpleview/ai_settings_dialog.py` | AI provider / model / key / prompt settings |
+| `pysimpleview/ai_dialogs.py` | Enhancement preview + guided multi-angle capture |
 | `pysimpleview/vision_worker.py` | Background thread for AI requests |
 | `pysimpleview/vision/` | Pluggable vision providers (Anthropic / MiniMax / custom) |
 | `pysimpleview/log.py` | Opt-in diagnostic logging |

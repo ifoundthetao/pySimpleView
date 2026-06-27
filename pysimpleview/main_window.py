@@ -24,7 +24,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from . import log, naming, video_view, vision
+from . import log, naming, transform, video_view, vision
+from .ai_dialogs import EnhancePreviewDialog, GuidedCaptureDialog
 from .ai_settings_dialog import AISettingsDialog
 from .camera import CaptureThread
 from .config import Config
@@ -238,13 +239,27 @@ class MainWindow(QWidget):
         # AI identification
         ai_box = QGroupBox("Identify (AI)")
         ai_l = QVBoxLayout(ai_box)
+
         ai_row = QHBoxLayout()
         self.identify_btn = QPushButton("Identify")
         self.identify_btn.clicked.connect(self.identify)
+        self.guided_btn = QPushButton("Guided…")
+        self.guided_btn.clicked.connect(self.guided_identify)
+        ai_row.addWidget(self.identify_btn)
+        ai_row.addWidget(self.guided_btn)
+
+        ai_row2 = QHBoxLayout()
         ai_settings_btn = QPushButton("AI settings…")
         ai_settings_btn.clicked.connect(self.open_ai_settings)
-        ai_row.addWidget(self.identify_btn)
-        ai_row.addWidget(ai_settings_btn)
+        self.preview_enh_btn = QPushButton("Preview enhanced")
+        self.preview_enh_btn.clicked.connect(self.preview_enhancement)
+        ai_row2.addWidget(ai_settings_btn)
+        ai_row2.addWidget(self.preview_enh_btn)
+
+        self.ai_enhance_check = QCheckBox("Enhance image(s) for AI (boost faint markings)")
+        self.ai_enhance_check.setChecked(bool(self.config["ai_enhance"]))
+        self.ai_enhance_check.toggled.connect(lambda s: self._set("ai_enhance", s))
+
         self.ai_provider_label = QLabel()
         self.ai_provider_label.setStyleSheet("color:#888;")
         self.ai_result = QPlainTextEdit()
@@ -252,6 +267,8 @@ class MainWindow(QWidget):
         self.ai_result.setMinimumHeight(120)
         self.ai_result.setPlaceholderText("AI description of the current view appears here.")
         ai_l.addLayout(ai_row)
+        ai_l.addLayout(ai_row2)
+        ai_l.addWidget(self.ai_enhance_check)
         ai_l.addWidget(self.ai_provider_label)
         ai_l.addWidget(self.ai_result)
         v.addWidget(ai_box)
@@ -571,11 +588,40 @@ class MainWindow(QWidget):
             self._update_ai_label()
 
     def identify(self) -> None:
-        if self._vision_thread is not None:
-            return
         frame = self.view.display_frame()
         if frame is None:
             self.ai_result.setPlainText("No frame to identify yet.")
+            return
+        self._run_identify([frame])
+
+    def guided_identify(self) -> None:
+        if self._vision_thread is not None:
+            return
+        if self.view.display_frame() is None:
+            self.ai_result.setPlainText("No live frame yet.")
+            return
+        dialog = GuidedCaptureDialog(self.view.display_frame, self)
+        if dialog.exec() and dialog.shots:
+            self._run_identify(dialog.shots)
+
+    def preview_enhancement(self) -> None:
+        frame = self.view.display_frame()
+        if frame is None:
+            self.ai_result.setPlainText("No frame to preview yet.")
+            return
+        EnhancePreviewDialog(frame, transform.enhance_for_ai(frame), self).exec()
+
+    def _encode_for_ai(self, frame) -> tuple[bytes, str] | None:
+        """JPEG-encode a frame for the model, applying enhancement if enabled."""
+        if self.config["ai_enhance"]:
+            frame = transform.enhance_for_ai(frame)
+        ok, buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 92])
+        if not ok:
+            return None
+        return buffer.tobytes(), "image/jpeg"
+
+    def _run_identify(self, frames: list) -> None:
+        if self._vision_thread is not None:
             return
 
         provider_key = self.config["vision_provider"]
@@ -586,10 +632,21 @@ class MainWindow(QWidget):
             )
             return
 
-        ok, buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 92])
-        if not ok:
-            self.ai_result.setPlainText("Could not encode the current frame.")
-            return
+        images: list[tuple[bytes, str]] = []
+        for frame in frames:
+            encoded = self._encode_for_ai(frame)
+            if encoded is None:
+                self.ai_result.setPlainText("Could not encode a frame for analysis.")
+                return
+            images.append(encoded)
+
+        prompt = self.config["vision_prompt"]
+        if len(images) > 1:
+            prompt = (
+                f"{prompt}\n\nThe following {len(images)} images show the same "
+                "subject from different angles and/or lighting. Use them together "
+                "to identify it."
+            )
 
         provider = vision.build_provider(
             provider_key,
@@ -598,10 +655,10 @@ class MainWindow(QWidget):
             api_key,
         )
         self.identify_btn.setEnabled(False)
-        self.ai_result.setPlainText("Identifying…")
-        self._vision_thread = VisionThread(
-            provider, buffer.tobytes(), "image/jpeg", self.config["vision_prompt"], self
-        )
+        self.guided_btn.setEnabled(False)
+        n = len(images)
+        self.ai_result.setPlainText(f"Identifying ({n} image{'s' if n != 1 else ''})…")
+        self._vision_thread = VisionThread(provider, images, prompt, self)
         self._vision_thread.succeeded.connect(self._on_vision_ok)
         self._vision_thread.failed.connect(self._on_vision_fail)
         self._vision_thread.finished.connect(self._on_vision_finished)
@@ -615,6 +672,7 @@ class MainWindow(QWidget):
 
     def _on_vision_finished(self) -> None:
         self.identify_btn.setEnabled(True)
+        self.guided_btn.setEnabled(True)
         self._vision_thread = None
 
     # ----- shutdown -----------------------------------------------------

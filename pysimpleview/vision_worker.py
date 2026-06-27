@@ -14,22 +14,18 @@ class VisionThread(QThread):
     def __init__(
         self,
         provider: VisionProvider,
-        image_bytes: bytes,
-        media_type: str,
+        images: list[tuple[bytes, str]],
         prompt: str,
         parent=None,
     ) -> None:
         super().__init__(parent)
         self._provider = provider
-        self._image_bytes = image_bytes
-        self._media_type = media_type
+        self._images = images
         self._prompt = prompt
 
     def run(self) -> None:  # noqa: D401 - QThread entry point
         try:
-            result = self._provider.analyze(
-                self._image_bytes, self._media_type, self._prompt
-            )
+            result = self._provider.analyze(self._images, self._prompt)
             self.succeeded.emit(result)
         except Exception as exc:  # surfaced to the UI
             self.failed.emit(str(exc))
