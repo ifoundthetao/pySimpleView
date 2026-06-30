@@ -5,8 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import cv2
+import numpy as np
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QKeySequence, QShortcut
+from PySide6.QtGui import QGuiApplication, QImage, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -66,6 +67,7 @@ class MainWindow(QWidget):
         self.view.white_balance_picked.connect(self._on_white_balance_picked)
 
         QShortcut(QKeySequence(Qt.Key_Space), self, activated=self.capture)
+        QShortcut(QKeySequence("Shift+Space"), self, activated=self.capture_to_clipboard)
 
         self._refresh_preview()
         self._update_calibration_label()
@@ -93,10 +95,13 @@ class MainWindow(QWidget):
         capture_btn = QPushButton("📸  Capture  (Space)")
         capture_btn.setMinimumHeight(44)
         capture_btn.clicked.connect(self.capture)
+        clipboard_btn = QPushButton("📋  Capture to Clipboard  (Shift + Space)")
+        clipboard_btn.clicked.connect(self.capture_to_clipboard)
         self.status_label = QLabel("Ready.")
         self.status_label.setWordWrap(True)
         self.status_label.setStyleSheet("color:#888;")
         cap_l.addWidget(capture_btn)
+        cap_l.addWidget(clipboard_btn)
         cap_l.addWidget(self.status_label)
         v.addWidget(cap_box)
 
@@ -404,13 +409,20 @@ class MainWindow(QWidget):
 
     # ----- capture ------------------------------------------------------
 
-    def capture(self) -> None:
+    def _grab_frame(self):
+        """Current displayed frame (with guides burned in if enabled), or None."""
         frame = self.view.display_frame()
         if frame is None:
             self.status_label.setText("No frame to capture yet.")
-            return
+            return None
         if self.config["burn_overlays"]:
             frame = self._burn_guides(frame.copy())
+        return frame
+
+    def capture(self) -> None:
+        frame = self._grab_frame()
+        if frame is None:
+            return
 
         target = self._next_path()
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -430,6 +442,17 @@ class MainWindow(QWidget):
         else:
             self.status_label.setText(f"Failed to write {target.name}")
         self._refresh_preview()
+
+    def capture_to_clipboard(self) -> None:
+        frame = self._grab_frame()
+        if frame is None:
+            return
+        rgb = np.ascontiguousarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        h, w = rgb.shape[:2]
+        # .copy() detaches the QImage from the temporary numpy buffer.
+        image = QImage(rgb.data, w, h, rgb.strides[0], QImage.Format_RGB888).copy()
+        QGuiApplication.clipboard().setImage(image)
+        self.status_label.setText(f"Copied {w}×{h} image to clipboard")
 
     def _burn_guides(self, frame):
         h, w = frame.shape[:2]
